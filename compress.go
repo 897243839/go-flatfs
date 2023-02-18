@@ -86,9 +86,9 @@ func init() {
 
 	}()
 }
-func hc(key string)[]byte  {
-	data,_:=hclist.Get(key)
-	return data
+func hc(key string)([]byte,bool)  {
+	data,f:=hclist.Get(key)
+	return data,f
 }
 func put_hc(key string,data []byte)  {
 	hclist.Set(key,data)
