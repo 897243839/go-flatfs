@@ -1,4 +1,4 @@
-module github.com/897243839/go-ds-flatfs
+module github.com/897243839/go-flatfs
 
 require (
 	github.com/alexbrainman/goissue34681 v0.0.0-20191006012335-3fc7a47baff5
