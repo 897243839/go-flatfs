@@ -722,8 +722,8 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 		//如果是冷数据，则解压使用
 		fmt.Println("本地冷数据使用")
 		Jl(key.String())
-		da:=hc(s)
-		if da!=nil {
+		da,f:=hc(s)
+		if f{
 			fmt.Printf("get_缓冲触发\n")
 			//如果在临时热数据表中，为热数据则解压使用，写入本地热数据表中
 			if getmap(s)>=5{
