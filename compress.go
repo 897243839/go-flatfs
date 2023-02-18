@@ -34,8 +34,8 @@ import (
 var maps sync.RWMutex
 var mapLit =New[int]()
 //var myTimer = time.Now().Unix() // 启动定时器
-var ticker = time.NewTicker(30 * time.Second) //计时器
-var ticker1 = time.NewTicker(5 * time.Minute) //计时器
+var ticker = time.NewTicker(60 * time.Second) //计时器
+var ticker1 = time.NewTicker(3 * time.Minute) //计时器
 
 //var hclist = make(map[string][]byte)
 var hclist = New[[]byte]()
@@ -69,7 +69,7 @@ func init() {
 			select {
 			case <-ticker1.C:
 				for key,v:=range maphot.Items(){
-					if v<=5{
+					if v<=9{
 						dir := filepath.Join(ps.path, ps.getDir(key))
 						file := filepath.Join(dir, key+extension)
 						ps.Get_writer(dir,file)
@@ -77,7 +77,7 @@ func init() {
 						mapw:=maphot.Items()
 						ps.WriteBlockhotFile(mapw,true)
 					}else {
-						maphot.Upsert(key,1,cb)
+						maphot.Set(key,1)
 					}
 				}
 				fmt.Println("更新本地热数据表成功")
@@ -378,7 +378,7 @@ func (fs *Datastore) Get_writer(dir string,path string) ( err error) {
 	}
 
 	//压缩
-	fmt.Printf("get_writer触发\n")
+
 	//Jl(key.String())
 	va:=Zlib_compress(data)
 	if _, err := tmp.Write(va); err != nil {
@@ -403,7 +403,7 @@ func (fs *Datastore) Get_writer(dir string,path string) ( err error) {
 	}
 	defer tmp.Close()
 	defer os.Remove(tmp.Name())
-
+	fmt.Printf("get_writer触发\n")
 
 	return nil
 }
