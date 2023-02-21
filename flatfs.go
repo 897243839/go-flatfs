@@ -543,6 +543,8 @@ func (fs *Datastore) doPut(key datastore.Key, val []byte) error {
 	closed = true
 	s:= strings.Replace(key.String(), "/", "", -1)
 	maphot.Upsert(s,1,cb)
+	mapw:=maphot.Items()
+	fs.WriteBlockhotFile(mapw,true)
 	err = fs.renameAndUpdateDiskUsage(tmp.Name(), path)
 	if err != nil {
 		return err
@@ -811,9 +813,6 @@ func (fs *Datastore) Delete(ctx context.Context, key datastore.Key) error {
 	if !keyIsValid(key) {
 		return nil
 	}
-	fmt.Printf("flatfs-Delete")
-
-
 	fs.shutdownLock.RLock()
 	defer fs.shutdownLock.RUnlock()
 	if fs.shutdown {
@@ -834,9 +833,7 @@ func (fs *Datastore) doDelete(key datastore.Key) error {
 	_, path := fs.encode(key)
 
 	fmt.Printf("doDelete触发\n")
-	Deljl(key.String())
-
-
+	//Deljl(key.String())
 	fSize := fileSize(path)
 
 	var err error
@@ -853,8 +850,11 @@ func (fs *Datastore) doDelete(key datastore.Key) error {
 		atomic.AddInt64(&fs.diskUsage, -fSize)
 		fs.checkpointDiskUsage()
 	}
-
 	return err
+	s:= strings.Replace(key.String(), "/", "", -1)
+	maphot.Remove(s)
+	mapw:=maphot.Items()
+	fs.WriteBlockhotFile(mapw,true)
 }
 
 func (fs *Datastore) Query(ctx context.Context, q query.Query) (query.Results, error) {
