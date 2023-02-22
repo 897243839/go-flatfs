@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
+	//"sync"
 	//"sync/atomic"
 	//"syscall"
 	"time"
