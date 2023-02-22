@@ -710,14 +710,9 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 	}
 	////---------------------------解压
 	s:= strings.Replace(key.String(), "/", "", -1)
-	n,_:=maphot.Get(s)
-	if n>=1{
-		//如果在本地热数据表中则直接使用
-
-		if n<999{
-			maphot.Upsert(s,1,cb)
-		}
-
+	n,p:=maphot.Get(s)
+	if n>=1&&n<999&&p{
+		maphot.Upsert(s,1,cb)
 		//本地热数据使用
 		fmt.Println("本地热数据使用")
 	}else {
@@ -734,12 +729,7 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 				if err!=nil{
 					fmt.Printf("写热数据失败")
 				}else {
-					//fs.readBlockhotFile()
-					//if maphot[s]<999{
-
 					maphot.Upsert(s,1,cb)
-
-					//}
 					mapw:=maphot.Items()
 					fs.WriteBlockhotFile(mapw,true)
 					fmt.Printf("写热数据成功")
@@ -845,16 +835,17 @@ func (fs *Datastore) doDelete(key datastore.Key) error {
 			return nil
 		}
 	}
-
-	if err == nil {
-		atomic.AddInt64(&fs.diskUsage, -fSize)
-		fs.checkpointDiskUsage()
-	}
-	return err
 	s:= strings.Replace(key.String(), "/", "", -1)
 	maphot.Remove(s)
 	mapw:=maphot.Items()
 	fs.WriteBlockhotFile(mapw,true)
+	if err == nil {
+		atomic.AddInt64(&fs.diskUsage, -fSize)
+		fs.checkpointDiskUsage()
+	}
+
+	return err
+
 }
 
 func (fs *Datastore) Query(ctx context.Context, q query.Query) (query.Results, error) {
