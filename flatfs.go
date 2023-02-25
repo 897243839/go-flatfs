@@ -306,7 +306,7 @@ func Open(path string, syncFiles bool) (*Datastore, error) {
 	mapw:=maphot.Items()
 	if os.IsNotExist(err) {
 		fs.WriteBlockhotFile(mapw,true)
-
+		fmt.Printf("生成初始热数据表")
 	} else{
 		fs.readBlockhotFile()
 		fmt.Printf("初始热数据长度%d\n",maphot.Count())
@@ -543,8 +543,6 @@ func (fs *Datastore) doPut(key datastore.Key, val []byte) error {
 	closed = true
 	s:= strings.Replace(key.String(), "/", "", -1)
 	maphot.Upsert(s,1,cb)
-	mapw:=maphot.Items()
-	fs.WriteBlockhotFile(mapw,true)
 	err = fs.renameAndUpdateDiskUsage(tmp.Name(), path)
 	if err != nil {
 		return err
@@ -650,8 +648,7 @@ func (fs *Datastore) putMany(data map[datastore.Key][]byte) error {
 		s:= strings.Replace(key.String(), "/", "", -1)
 		maphot.Upsert(s,1,cb)
 	}
-	mapw:=maphot.Items()
-	fs.WriteBlockhotFile(mapw,true)
+
 	// Now we sync everything
 	// sync and close files
 	err := closer()
@@ -719,7 +716,7 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 		//如果是冷数据，则解压使用
 		fmt.Println("本地冷数据使用")
 		Jl(key.String())
-		da,f:=hc(s)
+		da,f:=hclist.Get(s)
 		if f{
 			fmt.Printf("get_缓冲触发\n")
 			//如果在临时热数据表中，为热数据则解压使用，写入本地热数据表中
@@ -729,17 +726,15 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 				if err!=nil{
 					fmt.Printf("写热数据失败")
 				}else {
-					maphot.Upsert(s,1,cb)
-					mapw:=maphot.Items()
-					fs.WriteBlockhotFile(mapw,true)
 					fmt.Printf("写热数据成功")
+					maphot.Upsert(s,1,cb)
 				}
 				return da,nil
 			}
 			return da,nil
 		}
 		da=Zlib_decompress(data)
-		put_hc(s,da)
+		hclist.Set(s,da)
 		return da,nil
 	}
 
@@ -837,8 +832,6 @@ func (fs *Datastore) doDelete(key datastore.Key) error {
 	}
 	s:= strings.Replace(key.String(), "/", "", -1)
 	maphot.Remove(s)
-	mapw:=maphot.Items()
-	fs.WriteBlockhotFile(mapw,true)
 	if err == nil {
 		atomic.AddInt64(&fs.diskUsage, -fSize)
 		fs.checkpointDiskUsage()
@@ -1296,6 +1289,7 @@ func (fs *Datastore) deactivate() {
 }
 
 func (fs *Datastore) Close() error {
+	Updatemaphot()
 	fs.deactivate()
 	return nil
 }
@@ -1317,6 +1311,7 @@ func (fs *Datastore) Batch(_ context.Context) (datastore.Batch, error) {
 
 func (bt *flatfsBatch) Put(ctx context.Context, key datastore.Key, val []byte) error {
 	if !keyIsValid(key) {
+		println("flatfsput")
 		return fmt.Errorf("when putting '%q': %v", key, ErrInvalidKey)
 	}
 	bt.puts[key] = val
@@ -1325,6 +1320,7 @@ func (bt *flatfsBatch) Put(ctx context.Context, key datastore.Key, val []byte) e
 
 func (bt *flatfsBatch) Delete(ctx context.Context, key datastore.Key) error {
 	if keyIsValid(key) {
+		println("flatfsdel")
 		bt.deletes[key] = struct{}{}
 	} // otherwise, delete is a no-op anyways.
 	return nil
@@ -1334,7 +1330,7 @@ func (bt *flatfsBatch) Commit(ctx context.Context) error {
 	if err := bt.ds.putMany(bt.puts); err != nil {
 		return err
 	}
-
+	println("flatfscommit")
 	for k := range bt.deletes {
 		if err := bt.ds.Delete(ctx, k); err != nil {
 			return err
