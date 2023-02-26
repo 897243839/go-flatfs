@@ -64,7 +64,9 @@ var (
 	RetryAttempts = 6
 
 	block_hot="blockhot.json"
+	compressflag="compressflag.json"
 	maphot = New[int]()
+	Mode=1
 )
 
 const (
@@ -305,11 +307,24 @@ func Open(path string, syncFiles bool) (*Datastore, error) {
 	_, err = os.Stat(fpath)
 	mapw:=maphot.Items()
 	if os.IsNotExist(err) {
-		fs.WriteBlockhotFile(mapw,true)
+		fs.WriteJson(mapw,true,block_hot)
 		fmt.Printf("生成初始热数据表")
 	} else{
-		fs.readBlockhotFile()
+		temp,_:=fs.readJson(block_hot)
+		maphot.MSet(temp)
 		fmt.Printf("初始热数据长度%d\n",maphot.Count())
+	}
+	compresspath := filepath.Join(fs.path, compressflag)
+	_, err = os.Stat(compresspath)
+	if os.IsNotExist(err) {
+		mode:=make(map[string]int)
+		mode["flag"]=Mode
+		fs.WriteJson(mode,true,compressflag)
+		fmt.Printf("初始化压缩类型")
+	} else{
+		temp1,_:=fs.readJson(compressflag)
+		Mode=temp1["flag"]
+		fmt.Printf("zip-1,snappy-2,zlib-3,lz4-4,zstd-5压缩类型：%d\n",Mode)
 	}
 	//////=---------------------------------------------
 
@@ -733,7 +748,18 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 			}
 			return da,nil
 		}
-		da=Zlib_decompress(data)
+		switch Mode {
+		case ZipMode:
+			da=Zip_decompress(data)
+		case SnappyMode:
+			da=Snappy_decompress(data)
+		case ZlibMode:
+			da=Zlib_decompress(data)
+		case Lz4Mode:
+			da=Lz4_decompress(data)
+		case ZstdMode:
+			da=Zstd_decompress(data)
+		}
 		hclist.Set(s,da)
 		return da,nil
 	}
@@ -757,15 +783,7 @@ func (fs *Datastore) Has(ctx context.Context, key datastore.Key) (exists bool, e
 	case os.IsNotExist(err):
 		return false, nil
 	default:
-		//压缩
-		//select {
-		//case <-ticker.C:
-		//	Jl(key.String())
-		//	Pr()
-		//	updata_hc()
-		//default:
 			Jl(key.String())
-		//}
 		return false, err
 	}
 }
@@ -1330,7 +1348,7 @@ func (bt *flatfsBatch) Commit(ctx context.Context) error {
 	if err := bt.ds.putMany(bt.puts); err != nil {
 		return err
 	}
-	println("flatfscommit")
+	//println("flatfscommit")
 	for k := range bt.deletes {
 		if err := bt.ds.Delete(ctx, k); err != nil {
 			return err
