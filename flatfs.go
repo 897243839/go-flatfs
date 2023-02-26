@@ -308,7 +308,7 @@ func Open(path string, syncFiles bool) (*Datastore, error) {
 	mapw:=maphot.Items()
 	if os.IsNotExist(err) {
 		fs.WriteJson(mapw,true,block_hot)
-		fmt.Printf("生成初始热数据表")
+		fmt.Printf("生成初始热数据表\n")
 	} else{
 		temp,_:=fs.readJson(block_hot)
 		maphot.MSet(temp)
@@ -320,11 +320,11 @@ func Open(path string, syncFiles bool) (*Datastore, error) {
 		mode:=make(map[string]int)
 		mode["flag"]=Mode
 		fs.WriteJson(mode,true,compressflag)
-		fmt.Printf("初始化压缩类型")
+		fmt.Printf("初始化压缩类型\n")
 	} else{
 		temp1,_:=fs.readJson(compressflag)
 		Mode=temp1["flag"]
-		fmt.Printf("zip-1,snappy-2,zlib-3,lz4-4,zstd-5压缩类型：%d\n",Mode)
+		fmt.Printf("zlib-1,zip-2,snappy-3,lz4-4,zstd-5压缩类型：%d\n",Mode)
 	}
 	//////=---------------------------------------------
 
@@ -749,12 +749,12 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 			return da,nil
 		}
 		switch Mode {
+		case ZlibMode:
+			da=Zlib_decompress(data)
 		case ZipMode:
 			da=Zip_decompress(data)
 		case SnappyMode:
 			da=Snappy_decompress(data)
-		case ZlibMode:
-			da=Zlib_decompress(data)
 		case Lz4Mode:
 			da=Lz4_decompress(data)
 		case ZstdMode:
