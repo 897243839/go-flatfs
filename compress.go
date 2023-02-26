@@ -28,12 +28,22 @@ import (
 	"io"
 	"io/ioutil"
 	//"sync"
-	"os/signal"
+	//"os/signal"
 	//"syscall"
 )
 
 
 
+
+//zip,snappy,zlib,lz4,zstd
+const (
+	Unknow     int = iota
+	ZipMode                 // zip
+	SnappyMode              // snappy
+	ZlibMode                // zlib
+	Lz4Mode                 //lz4
+	ZstdMode                //zstd
+)
 
 var mapLit =New[int]()
 //var myTimer = time.Now().Unix() // 启动定时器
@@ -57,7 +67,6 @@ func putfs(fs *Datastore)  {
 	ps=fs
 }
 func init() {
-
 	go func() {
 		for {
 			select {
@@ -79,16 +88,12 @@ func init() {
 			if maphot.Count()>=1500 {
 				Updatemaphot()
 			}
-
 		}
-
 	}()
-
 }
 
 func  Updatemaphot()  {
 
-	fmt.Println("正在保存数据")
 	for key,v:=range maphot.Items(){
 		if v<=9{
 			dir := filepath.Join(ps.path, ps.getDir(key))
@@ -100,7 +105,7 @@ func  Updatemaphot()  {
 		}
 	}
 	mapw:=maphot.Items()
-	ps.WriteBlockhotFile(mapw,true)
+	ps.WriteJson(mapw,true,block_hot)
 	fmt.Println("本地热数据更新&&保存成功")
 	//x=maphot.Items()
 	//for w,q:=range x {
@@ -375,7 +380,6 @@ func (fs *Datastore) dohotPut(key datastore.Key, val []byte) error {
 
 
 func (fs *Datastore) Get_writer(dir string,path string) ( err error) {
-	signal.Ignore()
 	data, err := readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -403,7 +407,21 @@ func (fs *Datastore) Get_writer(dir string,path string) ( err error) {
 	//压缩
 
 	//Jl(key.String())
-	va:=Zlib_compress(data)
+	var va []byte
+	//println("Mode:",Mode)
+	switch Mode {
+	case ZipMode:
+		va=Zip_compress(data)
+	case SnappyMode:
+		va=Snappy_compress(data)
+	case ZlibMode:
+		va=Zlib_compress(data)
+	case Lz4Mode:
+		va=Lz4_compress(data)
+	case ZstdMode:
+		va=Zstd_compress(data)
+	}
+
 	if _, err := tmp.Write(va); err != nil {
 		return err
 	}
@@ -426,26 +444,28 @@ func (fs *Datastore) Get_writer(dir string,path string) ( err error) {
 	}
 	defer tmp.Close()
 	defer os.Remove(tmp.Name())
-	fmt.Printf("get_writer触发\n")
+	//fmt.Printf("get_writer触发\n")
 
 	return nil
 }
 // readBlockhotFile is only safe to call in Open()
-func (fs *Datastore) readBlockhotFile() int64 {
-	fpath := filepath.Join(fs.path, block_hot)
+func (fs *Datastore) readJson(name string) (map[string]int,int) {
+	fpath := filepath.Join(fs.path, name)
 	duB, err := readFile(fpath)
 	if err != nil {
-		return 0
+		println("读json错误")
+		return nil,0
 	}
-	var temp = make(map[string]int)
+	temp:= make(map[string]int)
 	err = json.Unmarshal(duB, &temp)
-	maphot.MSet(temp)
 	if err != nil {
-		return 0
+		println("读json错误")
+		return nil,0
 	}
-	return 1
+
+	return temp,1
 }
-func (fs *Datastore) WriteBlockhotFile(hot map[string]int, doSync bool) {
+func (fs *Datastore) WriteJson(hot map[string]int, doSync bool,name string) {
 	tmp, err := fs.tempFile()
 	if err != nil {
 		log.Warnw("could not write hot usage", "error", err)
@@ -481,7 +501,7 @@ func (fs *Datastore) WriteBlockhotFile(hot map[string]int, doSync bool) {
 		return
 	}
 	closed = true
-	if err := rename(tmp.Name(), filepath.Join(fs.path, block_hot)); err != nil {
+	if err := rename(tmp.Name(), filepath.Join(fs.path, name)); err != nil {
 		log.Warnw("cound not write block hot", "error", err)
 		return
 	}
