@@ -4,6 +4,8 @@ package flatfs
 import (
 	//"context"
 	"encoding/json"
+	"github.com/ipfs/go-datastore"
+
 	//"errors"
 	"fmt"
 	//"math"
@@ -12,7 +14,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ipfs/go-datastore"
 	//"sync/atomic"
 	//"syscall"
 	"time"
@@ -36,9 +37,9 @@ import (
 // zlib-1,zip-2,snappy-3,lz4-4,zstd-5
 const (
 	Unknow     int = iota
+	ZlibMode       // zlib
 	ZipMode        // zip
 	SnappyMode     // snappy
-	ZlibMode       // zlib
 	Lz4Mode        //lz4
 	ZstdMode       //zstd
 )
@@ -238,7 +239,7 @@ func Zlib_compress(val []byte) (value []byte) {
 	////	//fmt.Println(buf.Bytes())
 	//fmt.Println(len(buf.Bytes()))
 	//fmt.Println(len(val))
-	//fmt.Println("put------------")
+	fmt.Println("zlibput------------")
 	//----------
 
 	return buf.Bytes()
