@@ -36,9 +36,9 @@ import (
 // zip,snappy,zlib,lz4,zstd
 const (
 	Unknow     int = iota
+	ZlibMode       // zlib
 	ZipMode        // zip
 	SnappyMode     // snappy
-	ZlibMode       // zlib
 	Lz4Mode        //lz4
 	ZstdMode       //zstd
 )
