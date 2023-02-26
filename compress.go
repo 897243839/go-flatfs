@@ -410,12 +410,12 @@ func (fs *Datastore) Get_writer(dir string,path string) ( err error) {
 	var va []byte
 	//println("Mode:",Mode)
 	switch Mode {
+	case ZlibMode:
+		va=Zlib_compress(data)
 	case ZipMode:
 		va=Zip_compress(data)
 	case SnappyMode:
 		va=Snappy_compress(data)
-	case ZlibMode:
-		va=Zlib_compress(data)
 	case Lz4Mode:
 		va=Lz4_compress(data)
 	case ZstdMode:
