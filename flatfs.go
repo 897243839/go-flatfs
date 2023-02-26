@@ -23,12 +23,10 @@ import (
 	"github.com/jbenet/goprocess"
 
 	logging "github.com/ipfs/go-log"
-
 	//"github.com/pierrec/lz4"
 	//"bytes"
 	//"io"
 )
-
 
 var log = logging.Logger("flatfs")
 
@@ -63,10 +61,10 @@ var (
 	// before giving up.
 	RetryAttempts = 6
 
-	block_hot="blockhot.json"
-	compressflag="compressflag.json"
-	maphot = New[int]()
-	Mode=1
+	block_hot    = "blockhot.json"
+	compressflag = "compressflag.json"
+	maphot       = New[int]()
+	Mode         = 1
 )
 
 const (
@@ -122,15 +120,14 @@ var (
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 
-
 }
 
 // Datastore implements the go-datastore Interface.
 // Note this datastore cannot guarantee order of concurrent
 // write operations to the same key. See the explanation in
 // Put().
-//数据存储实现go数据存储接口。
-//\/\/请注意，此数据存储不能保证对同一密钥执行并发\/\/写操作的顺序。请参见\/\/Put（）中的说明。
+// 数据存储实现go数据存储接口。
+// \/\/请注意，此数据存储不能保证对同一密钥执行并发\/\/写操作的顺序。请参见\/\/Put（）中的说明。
 type Datastore struct {
 	// atmoic operations should always be used with diskUsage.
 	// Must be first in struct to ensure correct alignment
@@ -305,33 +302,32 @@ func Open(path string, syncFiles bool) (*Datastore, error) {
 	//--------------------------------------
 	fpath := filepath.Join(fs.path, block_hot)
 	_, err = os.Stat(fpath)
-	mapw:=maphot.Items()
+	mapw := maphot.Items()
 	if os.IsNotExist(err) {
-		fs.WriteJson(mapw,true,block_hot)
+		fs.WriteJson(mapw, true, block_hot)
 		fmt.Printf("生成初始热数据表\n")
-	} else{
-		temp,_:=fs.readJson(block_hot)
+	} else {
+		temp, _ := fs.readJson(block_hot)
 		maphot.MSet(temp)
-		fmt.Printf("初始热数据长度%d\n",maphot.Count())
+		fmt.Printf("初始热数据长度%d\n", maphot.Count())
 	}
 	compresspath := filepath.Join(fs.path, compressflag)
 	_, err = os.Stat(compresspath)
 	if os.IsNotExist(err) {
-		mode:=make(map[string]int)
-		mode["flag"]=Mode
-		fs.WriteJson(mode,true,compressflag)
+		mode := make(map[string]int)
+		mode["flag"] = Mode
+		fs.WriteJson(mode, true, compressflag)
 		fmt.Printf("初始化压缩类型\n")
-	} else{
-		temp1,_:=fs.readJson(compressflag)
-		Mode=temp1["flag"]
-		fmt.Printf("zlib-1,zip-2,snappy-3,lz4-4,zstd-5压缩类型：%d\n",Mode)
+	} else {
+		temp1, _ := fs.readJson(compressflag)
+		Mode = temp1["flag"]
+		fmt.Printf("zlib-1,zip-2,snappy-3,lz4-4,zstd-5压缩类型=%d\n", Mode)
 	}
 	//////=---------------------------------------------
 
 	go fs.checkpointLoop()
 	return fs, nil
 }
-
 
 // convenience method
 func CreateOrOpen(path string, fun *ShardIdV1, sync bool) (*Datastore, error) {
@@ -556,8 +552,8 @@ func (fs *Datastore) doPut(key datastore.Key, val []byte) error {
 		return err
 	}
 	closed = true
-	s:= strings.Replace(key.String(), "/", "", -1)
-	maphot.Upsert(s,1,cb)
+	s := strings.Replace(key.String(), "/", "", -1)
+	maphot.Upsert(s, 1, cb)
 	err = fs.renameAndUpdateDiskUsage(tmp.Name(), path)
 	if err != nil {
 		return err
@@ -660,8 +656,8 @@ func (fs *Datastore) putMany(data map[datastore.Key][]byte) error {
 		if _, err := tmp.Write(value); err != nil {
 			return err
 		}
-		s:= strings.Replace(key.String(), "/", "", -1)
-		maphot.Upsert(s,1,cb)
+		s := strings.Replace(key.String(), "/", "", -1)
+		maphot.Upsert(s, 1, cb)
 	}
 
 	// Now we sync everything
@@ -721,47 +717,47 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 		return nil, err
 	}
 	////---------------------------解压
-	s:= strings.Replace(key.String(), "/", "", -1)
-	n,p:=maphot.Get(s)
-	if n>=1&&n<999&&p{
-		maphot.Upsert(s,1,cb)
+	s := strings.Replace(key.String(), "/", "", -1)
+	n, p := maphot.Get(s)
+	if n >= 1 && n < 999 && p {
+		maphot.Upsert(s, 1, cb)
 		//本地热数据使用
 		fmt.Println("本地热数据使用")
-	}else {
+	} else {
 		//如果是冷数据，则解压使用
 		fmt.Println("本地冷数据使用")
 		Jl(key.String())
-		da,f:=hclist.Get(s)
-		if f{
+		da, f := hclist.Get(s)
+		if f {
 			fmt.Printf("get_缓冲触发\n")
 			//如果在临时热数据表中，为热数据则解压使用，写入本地热数据表中
-			if getmap(s)>=5{
+			if getmap(s) >= 5 {
 				fmt.Println("写热数据")
-				err:=fs.dohotPut(key,da)
-				if err!=nil{
+				err := fs.dohotPut(key, da)
+				if err != nil {
 					fmt.Printf("写热数据失败")
-				}else {
+				} else {
 					fmt.Printf("写热数据成功")
-					maphot.Upsert(s,1,cb)
+					maphot.Upsert(s, 1, cb)
 				}
-				return da,nil
+				return da, nil
 			}
-			return da,nil
+			return da, nil
 		}
 		switch Mode {
 		case ZlibMode:
-			da=Zlib_decompress(data)
+			da = Zlib_decompress(data)
 		case ZipMode:
-			da=Zip_decompress(data)
+			da = Zip_decompress(data)
 		case SnappyMode:
-			da=Snappy_decompress(data)
+			da = Snappy_decompress(data)
 		case Lz4Mode:
-			da=Lz4_decompress(data)
+			da = Lz4_decompress(data)
 		case ZstdMode:
-			da=Zstd_decompress(data)
+			da = Zstd_decompress(data)
 		}
-		hclist.Set(s,da)
-		return da,nil
+		hclist.Set(s, da)
+		return da, nil
 	}
 
 	fmt.Printf("get触发\n")
@@ -783,7 +779,7 @@ func (fs *Datastore) Has(ctx context.Context, key datastore.Key) (exists bool, e
 	case os.IsNotExist(err):
 		return false, nil
 	default:
-			Jl(key.String())
+		Jl(key.String())
 		return false, err
 	}
 }
@@ -794,7 +790,6 @@ func (fs *Datastore) GetSize(ctx context.Context, key datastore.Key) (size int, 
 		return -1, datastore.ErrNotFound
 	}
 	//fmt.Printf("getsize触发\n")
-
 
 	_, path := fs.encode(key)
 	switch s, err := os.Stat(path); {
@@ -848,7 +843,7 @@ func (fs *Datastore) doDelete(key datastore.Key) error {
 			return nil
 		}
 	}
-	s:= strings.Replace(key.String(), "/", "", -1)
+	s := strings.Replace(key.String(), "/", "", -1)
 	maphot.Remove(s)
 	if err == nil {
 		atomic.AddInt64(&fs.diskUsage, -fSize)
