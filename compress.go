@@ -1,11 +1,8 @@
 package flatfs
-
 //源数据块的解压缩文件
 import (
 	//"context"
 	"encoding/json"
-	"github.com/ipfs/go-datastore"
-
 	//"errors"
 	"fmt"
 	//"math"
@@ -14,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ipfs/go-datastore"
 	//"sync/atomic"
 	//"syscall"
 	"time"
@@ -34,35 +32,39 @@ import (
 	//"syscall"
 )
 
-// zlib-1,zip-2,snappy-3,lz4-4,zstd-5
+
+
+
+//zip,snappy,zlib,lz4,zstd
 const (
 	Unknow     int = iota
-	ZlibMode       // zlib
-	ZipMode        // zip
-	SnappyMode     // snappy
-	Lz4Mode        //lz4
-	ZstdMode       //zstd
+	ZlibMode                // zlib
+	ZipMode                 // zip
+	SnappyMode              // snappy
+	Lz4Mode                 //lz4
+	ZstdMode                //zstd
 )
 
-var mapLit = New[int]()
+var mapLit =New[int]()
+//var myTimer = time.Now().Unix() // 启动定时器
+var ticker = time.NewTicker(60 * time.Second) //计时器
+var ticker1 = time.NewTicker( 600* time.Minute) //计时器
 
-// var myTimer = time.Now().Unix() // 启动定时器
-var ticker = time.NewTicker(60 * time.Second)   //计时器
-var ticker1 = time.NewTicker(600 * time.Minute) //计时器
-
-// var hclist = make(map[string][]byte)
+//var hclist = make(map[string][]byte)
 var hclist = New[[]byte]()
-var cb = func(exists bool, valueInMap int, newValue int) int {
+var cb= func(exists bool, valueInMap int, newValue int) int {
 	if !exists {
 		return newValue
 	}
 	valueInMap += newValue
 	return valueInMap
 }
-var ps = &Datastore{}
+var ps = &Datastore{
 
-func putfs(fs *Datastore) {
-	ps = fs
+}
+
+func putfs(fs *Datastore)  {
+	ps=fs
 }
 func init() {
 	go func() {
@@ -71,61 +73,59 @@ func init() {
 			case <-ticker.C:
 				Pr()
 				updata_hc()
-				//default:
+			//default:
 			}
-			time.Sleep(10 * time.Second)
+			time.Sleep(10*time.Second)
 		}
 	}()
 	go func() {
-		for {
+		for  {
 			select {
 			case <-ticker1.C:
 				Updatemaphot()
 			}
-			time.Sleep(1 * time.Minute)
-			if maphot.Count() >= 1500 {
+			time.Sleep(1*time.Minute)
+			if maphot.Count()>=1500 {
 				Updatemaphot()
 			}
 		}
 	}()
 }
 
-func Updatemaphot() {
-	fmt.Println("正在保存数据\n")
-	for key, v := range maphot.Items() {
-		if v <= 9 {
+func  Updatemaphot()  {
+
+	for key,v:=range maphot.Items(){
+		if v<=9{
 			dir := filepath.Join(ps.path, ps.getDir(key))
 			file := filepath.Join(dir, key+extension)
-			ps.Get_writer(dir, file)
+			ps.Get_writer(dir,file)
 			maphot.Remove(key)
-		} else {
-			maphot.Set(key, 1)
+		}else {
+			maphot.Set(key,1)
 		}
 	}
-	mapw := maphot.Items()
-	ps.WriteJson(mapw, true, block_hot)
-	fmt.Println("本地热数据更新&&保存成功\n")
+	mapw:=maphot.Items()
+	ps.WriteJson(mapw,true,block_hot,ps.path)
+	fmt.Println("本地热数据更新&&保存成功")
 	//x=maphot.Items()
 	//for w,q:=range x {
 	//	println(w,q)
 	//}
 	//fmt.Println("本地热数据表如上")
 }
-
-//	func hc(key string)([]byte,bool)  {
-//		data,f:=hclist.Get(key)
-//		return data,f
-//	}
-func put_hc(key string, data []byte) {
-	hclist.Set(key, data)
+//func hc(key string)([]byte,bool)  {
+//	data,f:=hclist.Get(key)
+//	return data,f
+//}
+func put_hc(key string,data []byte)  {
+	hclist.Set(key,data)
 }
-func updata_hc() {
-	println("缓冲大小", hclist.Count())
+func updata_hc()  {
+	println("缓冲大小",hclist.Count())
 	hclist.Clear()
-	println("缓冲大小", hclist.Count())
+	println("缓冲大小",hclist.Count())
 }
-
-// lz4解压缩
+//lz4解压缩
 func Lz4_compress(val []byte) (value []byte) {
 	var buf bytes.Buffer
 	writer := lz4.NewWriter(&buf)
@@ -134,22 +134,21 @@ func Lz4_compress(val []byte) (value []byte) {
 
 	return buf.Bytes()
 }
-func Lz4_decompress(data []byte) (value []byte) {
+func Lz4_decompress(data []byte) (value []byte ){
 	//---------------------------解压
-	b := bytes.NewReader(data)
+	b:= bytes.NewReader(data)
 	//var out bytes.Buffer
-	r := lz4.NewReader(b)
+	r:= lz4.NewReader(b)
 	//io.Copy(&out, r)
 	val, err := ioutil.ReadAll(r)
-	if err != nil {
-		println("解压错误", err)
+	if  err != nil {
+		println("解压错误",err)
 		return data
 	}
 
 	return val
 }
-
-// snappy解压缩
+//snappy解压缩
 func Snappy_compress(val []byte) (value []byte) {
 
 	//---------------压缩
@@ -169,21 +168,20 @@ func Snappy_compress(val []byte) (value []byte) {
 
 	return buf.Bytes()
 }
-func Snappy_decompress(data []byte) (value []byte) {
+func Snappy_decompress(data []byte) (value []byte ){
 	//---------------------------解压
-	b := bytes.NewReader(data)
+	b:= bytes.NewReader(data)
 	//var out bytes.Buffer
-	r := snappy.NewReader(b)
+	r:=snappy.NewReader(b)
 	val, err := ioutil.ReadAll(r)
-	if err != nil {
-		println("解压错误", err)
+	if  err != nil {
+		println("解压错误",err)
 		return data
 	}
 	//io.Copy(&out,val)
 	return val
 }
-
-// zip解压缩
+//zip解压缩
 func Zip_compress(val []byte) (value []byte) {
 
 	//fmt.Println("put------------")
@@ -207,7 +205,7 @@ func Zip_compress(val []byte) (value []byte) {
 	//fmt.Println(len(buf.Bytes()))
 	return buf.Bytes()
 }
-func Zip_decompress(data []byte) (value []byte) {
+func Zip_decompress(data []byte) (value []byte ){
 	//---------------------------解压
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
@@ -219,15 +217,15 @@ func Zip_decompress(data []byte) (value []byte) {
 	//var out bytes.Buffer
 	//_, err = io.Copy(&out, r)
 	val, err := ioutil.ReadAll(r)
-	if err != nil {
-		println("解压错误", err)
+	if  err != nil {
+		println("解压错误",err)
 		return data
 	}
 	return val
 }
-
-// zlib解压缩
+//zlib解压缩
 func Zlib_compress(val []byte) (value []byte) {
+
 
 	//---------------压缩
 	var buf bytes.Buffer
@@ -239,30 +237,30 @@ func Zlib_compress(val []byte) (value []byte) {
 	////	//fmt.Println(buf.Bytes())
 	//fmt.Println(len(buf.Bytes()))
 	//fmt.Println(len(val))
-	fmt.Println("zlibput------------")
+	//fmt.Println("put------------")
 	//----------
 
 	return buf.Bytes()
 }
-func Zlib_decompress(data []byte) (value []byte) {
+func Zlib_decompress(data []byte) (value []byte ){
 	//---------------------------解压
-	b := bytes.NewReader(data)
+	b:= bytes.NewReader(data)
 	var out bytes.Buffer
-	r, err := zlib.NewReader(b)
-	if err != nil {
-		println("解压错误", err)
+	r,err:= zlib.NewReader(b)
+	if  err != nil {
+		println("解压错误",err)
 		return data
 	}
 	io.Copy(&out, r)
 	return out.Bytes()
 
 }
-
-// Zstd解压缩
+//Zstd解压缩
 func Zstd_compress(val []byte) (value []byte) {
 
+
 	var buf bytes.Buffer
-	writer, _ := zstd.NewWriter(&buf)
+	writer,_ := zstd.NewWriter(&buf)
 	writer.Write(val)
 	writer.Close()
 
@@ -276,14 +274,14 @@ func Zstd_compress(val []byte) (value []byte) {
 
 	return buf.Bytes()
 }
-func Zstd_decompress(data []byte) (value []byte) {
+func Zstd_decompress(data []byte) (value []byte ){
 	//---------------------------解压
-	b := bytes.NewReader(data)
+	b:= bytes.NewReader(data)
 	//var out bytes.Buffer
-	r, err := zstd.NewReader(b)
+	r,err:= zstd.NewReader(b)
 	val, err := ioutil.ReadAll(r)
-	if err != nil {
-		println("解压错误", err)
+	if  err != nil {
+		println("解压错误",err)
 		return data
 	}
 	//io.Copy(&out, r)
@@ -296,11 +294,11 @@ func Pr() {
 func Jl(key string) {
 	//------------------------------------------------------------
 	//s:= dshelp.MultihashToDsKey(k.Hash()).String()
-	s := key
+	s:=key
 	s = strings.Replace(s, "/", "", -1)
-	n, _ := mapLit.Get(s)
-	if n < 99 {
-		mapLit.Upsert(s, 1, cb)
+	n,_:=mapLit.Get(s)
+	if n<99{
+		mapLit.Upsert(s,1,cb)
 	}
 
 	//var endtime =time.Now().Unix()
@@ -317,15 +315,15 @@ func Jl(key string) {
 	//
 	//}
 }
-func Deljl(key string) {
+func Deljl(key string)  {
 	//---------------------------------------------------------------------
-	s := key
+	s:= key
 	s = strings.Replace(s, "/", "", -1)
 	mapLit.Remove(s)
 
 }
-func getmap(key string) int {
-	n, _ := mapLit.Get(key)
+func getmap(key string)int{
+	n,_:=mapLit.Get(key)
 	return n
 }
 func (fs *Datastore) dohotPut(key datastore.Key, val []byte) error {
@@ -380,14 +378,15 @@ func (fs *Datastore) dohotPut(key datastore.Key, val []byte) error {
 	return nil
 }
 
-func (fs *Datastore) Get_writer(dir string, path string) (err error) {
+
+func (fs *Datastore) Get_writer(dir string,path string) ( err error) {
 	data, err := readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return datastore.ErrNotFound
 		}
 		// no specific error to return, so just pass it through
-		return err
+		return  err
 	}
 
 	fs.shutdownLock.RLock()
@@ -409,18 +408,18 @@ func (fs *Datastore) Get_writer(dir string, path string) (err error) {
 
 	//Jl(key.String())
 	var va []byte
-	println("Mode:", Mode)
+	println("Mode:",Mode)
 	switch Mode {
 	case ZlibMode:
-		va = Zlib_compress(data)
+		va=Zlib_compress(data)
 	case ZipMode:
-		va = Zip_compress(data)
+		va=Zip_compress(data)
 	case SnappyMode:
-		va = Snappy_compress(data)
+		va=Snappy_compress(data)
 	case Lz4Mode:
-		va = Lz4_compress(data)
+		va=Lz4_compress(data)
 	case ZstdMode:
-		va = Zstd_compress(data)
+		va=Zstd_compress(data)
 	}
 
 	if _, err := tmp.Write(va); err != nil {
@@ -449,25 +448,24 @@ func (fs *Datastore) Get_writer(dir string, path string) (err error) {
 
 	return nil
 }
-
 // readBlockhotFile is only safe to call in Open()
-func (fs *Datastore) readJson(name string) (map[string]int, int) {
-	fpath := filepath.Join(fs.path, name)
+func (fs *Datastore) readJson(path string,name string) (map[string]int,int) {
+	fpath := filepath.Join(path, name)
 	duB, err := readFile(fpath)
 	if err != nil {
 		println("读json错误")
-		return nil, 0
+		return nil,0
 	}
-	temp := make(map[string]int)
+	temp:= make(map[string]int)
 	err = json.Unmarshal(duB, &temp)
 	if err != nil {
 		println("读json错误")
-		return nil, 0
+		return nil,0
 	}
 
-	return temp, 1
+	return temp,1
 }
-func (fs *Datastore) WriteJson(hot map[string]int, doSync bool, name string) {
+func (fs *Datastore) WriteJson(hot map[string]int, doSync bool,name string, path string) {
 	tmp, err := fs.tempFile()
 	if err != nil {
 		log.Warnw("could not write hot usage", "error", err)
@@ -503,7 +501,7 @@ func (fs *Datastore) WriteJson(hot map[string]int, doSync bool, name string) {
 		return
 	}
 	closed = true
-	if err := rename(tmp.Name(), filepath.Join(fs.path, name)); err != nil {
+	if err := rename(tmp.Name(), filepath.Join(path, name)); err != nil {
 		log.Warnw("cound not write block hot", "error", err)
 		return
 	}
