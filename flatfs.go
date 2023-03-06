@@ -556,7 +556,7 @@ func (fs *Datastore) doPut(key datastore.Key, val []byte) error {
 	}
 	closed = true
 	s := strings.Replace(key.String(), "/", "", -1)
-	maphot.Upsert(s, 1, cb)
+	maphot.Set(s, 1)
 	err = fs.renameAndUpdateDiskUsage(tmp.Name(), path)
 	if err != nil {
 		return err
@@ -660,7 +660,7 @@ func (fs *Datastore) putMany(data map[datastore.Key][]byte) error {
 			return err
 		}
 		s := strings.Replace(key.String(), "/", "", -1)
-		maphot.Upsert(s, 1, cb)
+		maphot.Set(s, 1)
 	}
 
 	// Now we sync everything
