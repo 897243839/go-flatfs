@@ -45,7 +45,6 @@ var mapLit = New[int]()
 // var myTimer = time.Now().Unix() // 启动定时器
 var ticker = time.NewTicker(60 * time.Second)   //计时器
 var ticker1 = time.NewTicker(600 * time.Minute) //计时器
-
 // var hclist = make(map[string][]byte)
 var hclist = New[[]byte]()
 var cb = func(exists bool, valueInMap int, newValue int) int {
