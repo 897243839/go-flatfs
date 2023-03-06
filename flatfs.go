@@ -29,7 +29,6 @@ import (
 	//"io"
 )
 
-
 var log = logging.Logger("flatfs")
 
 const (
@@ -65,8 +64,9 @@ var (
 
 	block_hot="blockhot.json"
 	compressflag="compressflag.json"
-	maphot = New[int]()
+	//maphot = New[int]()
 	Mode=1
+	maphot = NewKeyValue()
 )
 
 const (
@@ -305,13 +305,13 @@ func Open(path string, syncFiles bool) (*Datastore, error) {
 	//--------------------------------------
 	fpath := filepath.Join(fs.path, block_hot)
 	_, err = os.Stat(fpath)
-	mapw:=maphot.Items()
+
 	if os.IsNotExist(err) {
-		fs.WriteJson(mapw,true,block_hot,fs.path)
+		fs.WriteJson(maphot.data,true,block_hot,fs.path)
 		fmt.Printf("生成初始热数据表\n")
 	} else{
 		temp,_:=fs.readJson(fs.path,block_hot)
-		maphot.MSet(temp)
+		maphot.data=temp
 		fmt.Printf("初始热数据长度%d\n",maphot.Count())
 	}
 
@@ -560,11 +560,12 @@ func (fs *Datastore) doPut(key datastore.Key, val []byte) error {
 	}
 	closed = true
 	s:= strings.Replace(key.String(), "/", "", -1)
-	maphot.Upsert(s,1,cb)
+
 	err = fs.renameAndUpdateDiskUsage(tmp.Name(), path)
 	if err != nil {
 		return err
 	}
+	maphot.Incr(s,1)
 	removed = true
 
 	if fs.sync {
@@ -664,7 +665,7 @@ func (fs *Datastore) putMany(data map[datastore.Key][]byte) error {
 			return err
 		}
 		s:= strings.Replace(key.String(), "/", "", -1)
-		maphot.Upsert(s,1,cb)
+		maphot.Incr(s,1)
 	}
 
 	// Now we sync everything
@@ -727,14 +728,14 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 	s:= strings.Replace(key.String(), "/", "", -1)
 	n,p:=maphot.Get(s)
 	if n>=1&&n<999&&p{
-		maphot.Upsert(s,1,cb)
+		maphot.Incr(s,1)
 		//本地热数据使用
 		fmt.Println("本地热数据使用")
 	}else {
 		//如果是冷数据，则解压使用
 		fmt.Println("本地冷数据使用")
 		Jl(key.String())
-		da,f:=hclist.Get(s)
+		da,f:=hclist.GetByte(s)
 		if f{
 			fmt.Printf("get_缓冲触发\n")
 			//如果在临时热数据表中，为热数据则解压使用，写入本地热数据表中
@@ -745,7 +746,7 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 					fmt.Printf("写热数据失败")
 				}else {
 					fmt.Printf("写热数据成功")
-					maphot.Upsert(s,1,cb)
+					maphot.Incr(s,1)
 				}
 				return da,nil
 			}
@@ -763,7 +764,7 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 		case ZstdMode:
 			da=Zstd_decompress(data)
 		}
-		hclist.Set(s,da)
+		hclist.SetByte(s,da)
 		return da,nil
 	}
 
@@ -852,7 +853,7 @@ func (fs *Datastore) doDelete(key datastore.Key) error {
 		}
 	}
 	s:= strings.Replace(key.String(), "/", "", -1)
-	maphot.Remove(s)
+	maphot.Delete(s)
 	if err == nil {
 		atomic.AddInt64(&fs.diskUsage, -fSize)
 		fs.checkpointDiskUsage()
