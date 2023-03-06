@@ -45,13 +45,12 @@ const (
 	ZstdMode                //zstd
 )
 
-var mapLit =New[int]()
+var mapLit =NewKeyValue()
 //var myTimer = time.Now().Unix() // 启动定时器
 var ticker = time.NewTicker(60 * time.Second) //计时器
-var ticker1 = time.NewTicker( 600* time.Minute) //计时器
+var ticker1 = time.NewTicker(600 * time.Minute) //计时器
 
-//var hclist = make(map[string][]byte)
-var hclist = New[[]byte]()
+var hclist = NewKeyByte()
 var cb= func(exists bool, valueInMap int, newValue int) int {
 	if !exists {
 		return newValue
@@ -62,7 +61,6 @@ var cb= func(exists bool, valueInMap int, newValue int) int {
 var ps = &Datastore{
 
 }
-
 func putfs(fs *Datastore)  {
 	ps=fs
 }
@@ -94,36 +92,27 @@ func init() {
 
 func  Updatemaphot()  {
 
-	for key,v:=range maphot.Items(){
-		if v<=9{
+	maphot.Range(func(key string, value int) {
+		if value<=9{
 			dir := filepath.Join(ps.path, ps.getDir(key))
 			file := filepath.Join(dir, key+extension)
 			ps.Get_writer(dir,file)
-			maphot.Remove(key)
+			maphot.Delete(key)
 		}else {
 			maphot.Set(key,1)
 		}
-	}
-	mapw:=maphot.Items()
-	ps.WriteJson(mapw,true,block_hot,ps.path)
+	})
+
+	ps.WriteJson(maphot.data,true,block_hot,ps.path)
 	fmt.Println("本地热数据更新&&保存成功")
-	//x=maphot.Items()
-	//for w,q:=range x {
-	//	println(w,q)
-	//}
-	//fmt.Println("本地热数据表如上")
 }
-//func hc(key string)([]byte,bool)  {
-//	data,f:=hclist.Get(key)
-//	return data,f
+//func put_hc(key string,data []byte)  {
+//	hclist.SetByte(key,data)
 //}
-func put_hc(key string,data []byte)  {
-	hclist.Set(key,data)
-}
 func updata_hc()  {
-	println("缓冲大小",hclist.Count())
-	hclist.Clear()
-	println("缓冲大小",hclist.Count())
+	println("缓冲大小",hclist.CountByte())
+	hclist.ClearByte()
+	println("缓冲大小",hclist.CountByte())
 }
 //lz4解压缩
 func Lz4_compress(val []byte) (value []byte) {
@@ -298,7 +287,7 @@ func Jl(key string) {
 	s = strings.Replace(s, "/", "", -1)
 	n,_:=mapLit.Get(s)
 	if n<99{
-		mapLit.Upsert(s,1,cb)
+		mapLit.Incr(s,1)
 	}
 
 	//var endtime =time.Now().Unix()
@@ -319,7 +308,7 @@ func Deljl(key string)  {
 	//---------------------------------------------------------------------
 	s:= key
 	s = strings.Replace(s, "/", "", -1)
-	mapLit.Remove(s)
+	mapLit.Delete(s)
 
 }
 func getmap(key string)int{
