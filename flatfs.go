@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"google.golang.org/appengine/datastore"
 	"math"
 	"math/rand"
 	"os"
@@ -18,7 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/jbenet/goprocess"
 
@@ -324,7 +324,7 @@ func Open(path string, syncFiles bool) (*Datastore, error) {
 	} else {
 		temp1, _ := fs.readJson(s, compressflag)
 		Mode = temp1["flag"]
-		fmt.Printf("zlib-1,zip-2,snappy-3,lz4-4,zstd-5压缩类型：%d\n", Mode)
+		fmt.Printf("zlib-1,zip-2,lz4-3,zstd-4,snappy-5压缩类型：%d\n", Mode)
 	}
 	//////=---------------------------------------------
 
@@ -752,12 +752,12 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 			da = Zlib_decompress(data)
 		case ZipMode:
 			da = Zip_decompress(data)
-		case SnappyMode:
-			da = Snappy_decompress(data)
 		case Lz4Mode:
 			da = Lz4_decompress(data)
 		case ZstdMode:
 			da = Zstd_decompress(data)
+		case SnappyMode:
+			da = Snappy_decompress(data)
 		}
 		hclist.Set(s, da)
 		return da, nil
