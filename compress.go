@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ipfs/go-datastore"
 	//"sync/atomic"
 	//"syscall"
 	"time"
@@ -51,8 +50,12 @@ var cb = func(exists bool, valueInMap int, newValue int) int {
 	if !exists {
 		return newValue
 	}
+	if valueInMap > 999 {
+		return 1000
+	}
 	valueInMap += newValue
 	return valueInMap
+
 }
 var ps = &Datastore{}
 
