@@ -27,8 +27,10 @@ func listencool() {
 		case <-hc.Ticker.C:
 			hc.MapLit.Clear()
 		case key := <-hc.Tsf:
+			println("热转换块等待：", key)
 			if hc.Maphot.Count() < hc.Num {
 				ps.dohotPut(key)
+				println("热转换：", key)
 			} else {
 				time.Sleep(30)
 			}
@@ -136,7 +138,7 @@ func (fs *Datastore) dohotPut(key string) error {
 	}
 	removed = true
 	hc.Maphot.Set(key, 1)
-	hc.Maphot.Remove(key)
+	hc.MapLit.Remove(key)
 	if fs.sync {
 		if err := syncDir(dir); err != nil {
 			return err
