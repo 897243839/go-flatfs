@@ -97,11 +97,12 @@ func (fs *Datastore) dohotPut(key string) error {
 		// no specific error to return, so just pass it through
 		return err
 	}
-	if hc.GetCompressorType(val) == hc.UnknownCompressor {
+	comptype := hc.GetCompressorType(val)
+	if comptype == hc.UnknownCompressor {
 		fmt.Printf("不需要dohot\n")
 		return nil
 	}
-
+	val = hc.Decompress(val, comptype)
 	tmp, err := fs.tempFile()
 	if err != nil {
 		return err
