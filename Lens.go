@@ -5,6 +5,8 @@ import (
 	//"context"
 	"encoding/json"
 	hc "github.com/897243839/HcdComp"
+	"time"
+
 	//"errors"
 	"fmt"
 	"github.com/ipfs/go-datastore"
@@ -19,36 +21,48 @@ var ps = &Datastore{}
 func putfs(fs *Datastore) {
 	ps = fs
 }
-func init() {
-	go func() {
-		for {
-			select {
-			case <-hc.Ticker.C:
-				hc.MapLit.Clear()
+func listencool() {
+	for {
+		select {
+		case <-hc.Ticker.C:
+			hc.MapLit.Clear()
+		case key := <-hc.Tsf:
+			if hc.Maphot.Count() < hc.Num {
+				ps.dohotPut(key)
+			} else {
+				time.Sleep(30)
 			}
+		default:
 		}
-	}()
-	//go func() {
-	//	for {
-	//		select {
-	//		case <-hc.ticker1.C:
-	//			for key, v := range hc.hc.Maphot.Items() {
-	//				if v <= 9 {
-	//					dir := filepath.Join(ps.path, ps.getDir(key))
-	//					file := filepath.Join(dir, key+extension)
-	//					ps.Get_writer(dir, file)
-	//					hc.hc.Maphot.Remove(key)
-	//					mapw := hc.hc.Maphot.Items()
-	//					ps.WriteBlockhotFile(mapw, true)
-	//				} else {
-	//					hc.hc.Maphot.Set(key, 1)
-	//				}
-	//			}
-	//			fmt.Println("更新本地热数据表成功")
-	//		}
-	//	}
-	//
-	//}()
+	}
+}
+func listenhot() {
+	for {
+		select {
+		case <-hc.Ticker1.C:
+			UpdateMaphot()
+			if hc.Maphot.Count() < 800000 {
+				hc.Num = 1000000
+			} else {
+				hc.Num = 2000000
+			}
+			fmt.Println("更新本地热数据表成功")
+		default:
+			if hc.Maphot.Count() >= hc.Num {
+				UpdateMaphot()
+				if hc.Maphot.Count() < 800000 {
+					hc.Num = 1000000
+				} else {
+					hc.Num = 2000000
+				}
+			}
+
+		}
+	}
+}
+func init() {
+	go listencool()
+	go listenhot()
 }
 func UpdateMaphot() {
 
@@ -65,20 +79,25 @@ func UpdateMaphot() {
 	mapw := hc.Maphot.Items()
 	ps.WriteJson(mapw, true, hc.Block_hot, ps.path)
 	fmt.Println("本地热数据更新&&保存成功")
-	//x=hc.Maphot.Items()
-	//for w,q:=range x {
-	//	println(w,q)
-	//}
-	//fmt.Println("本地热数据表如上")
 }
-func (fs *Datastore) dohotPut(key datastore.Key, val []byte) error {
+func (fs *Datastore) dohotPut(key string) error {
+
+	dir := filepath.Join(ps.path, ps.getDir(key))
+	if err := fs.makeDir(dir); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, key+extension)
+	val, err := readFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return datastore.ErrNotFound
+		}
+		// no specific error to return, so just pass it through
+		return err
+	}
 	if hc.GetCompressorType(val) == hc.UnknownCompressor {
 		fmt.Printf("不需要dohot\n")
 		return nil
-	}
-	dir, path := fs.encode(key)
-	if err := fs.makeDir(dir); err != nil {
-		return err
 	}
 
 	tmp, err := fs.tempFile()
@@ -116,7 +135,8 @@ func (fs *Datastore) dohotPut(key datastore.Key, val []byte) error {
 		return err
 	}
 	removed = true
-	hc.Maphot.Set(key.String()[1:], 1)
+	hc.Maphot.Set(key, 1)
+	hc.Maphot.Remove(key)
 	if fs.sync {
 		if err := syncDir(dir); err != nil {
 			return err
