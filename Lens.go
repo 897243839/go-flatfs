@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	hc "github.com/897243839/HcdComp"
 	"time"
-
 	//"errors"
 	"fmt"
 	"github.com/ipfs/go-datastore"
+	dshelp "github.com/ipfs/go-ipfs-ds-help"
 	//"math"
 	//"math/rand"
 	"os"
@@ -33,7 +33,45 @@ func listencool() {
 				println("热转换：", key)
 			} else {
 				time.Sleep(30)
+				ps.dohotPut(key)
 			}
+		default:
+		}
+	}
+}
+func listenkey() {
+	for {
+		select {
+		case c := <-hc.Hck:
+			key := dshelp.MultihashToDsKey(c.Hash()).String()[1:]
+			println("更新热数据使用次数：", key)
+			v, ok := hc.Maphot.Get(key)
+			if !ok {
+				hc.Maphot.Set(key, 1)
+			}
+			if v > 999 {
+			} else {
+				v += 1
+				hc.Maphot.Set(key, v)
+			}
+		case c := <-hc.Clk:
+			key := dshelp.MultihashToDsKey(c.Hash()).String()[1:]
+			println("cool数据使用：", key)
+			v, ok := hc.MapLit.Get(key)
+			if !ok {
+				hc.MapLit.Set(key, 1)
+			}
+			if v == 5 {
+				hc.Tsf <- key
+				v += 1
+				hc.MapLit.Set(key, v)
+			} else if v < 5 {
+				v += 1
+				hc.MapLit.Set(key, v)
+			}
+		case key := <-hc.Hotk:
+			println("add数据：", key)
+			hc.Maphot.Set(key, 1)
 		default:
 		}
 	}
@@ -65,6 +103,7 @@ func listenhot() {
 func init() {
 	go listencool()
 	go listenhot()
+	go listenkey()
 }
 func UpdateMaphot() {
 
@@ -72,7 +111,10 @@ func UpdateMaphot() {
 		if v <= 9 {
 			dir := filepath.Join(ps.path, ps.getDir(key))
 			file := filepath.Join(dir, key+extension)
+			startTime := time.Now()
 			ps.Get_writer(dir, file)
+			dur := time.Since(startTime)
+			fmt.Printf("冷热转换写时间：%s\n", dur)
 			hc.Maphot.Remove(key)
 		} else {
 			hc.Maphot.Set(key, 1)
