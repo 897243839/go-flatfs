@@ -347,6 +347,12 @@ func (fs *Datastore) encode(key datastore.Key) (dir, file string) {
 	file = filepath.Join(dir, noslash+extension)
 	return dir, file
 }
+func (fs *Datastore) encode1(key datastore.Key) (dir, file string, k string) {
+	noslash := key.String()[1:]
+	dir = filepath.Join(fs.path, fs.getDir(noslash))
+	file = filepath.Join(dir, noslash+extension)
+	return dir, file, noslash
+}
 
 func (fs *Datastore) decode(file string) (key datastore.Key, ok bool) {
 	if !strings.HasSuffix(file, extension) {
@@ -514,7 +520,7 @@ func (fs *Datastore) doWriteOp(oper *op) (done bool, err error) {
 
 func (fs *Datastore) doPut(key datastore.Key, val []byte) error {
 
-	dir, path := fs.encode(key)
+	dir, path, k := fs.encode1(key)
 	if err := fs.makeDir(dir); err != nil {
 		return err
 	}
@@ -551,7 +557,11 @@ func (fs *Datastore) doPut(key datastore.Key, val []byte) error {
 		return err
 	}
 	closed = true
-	hc.Maphot.Set(key.String()[1:], 1)
+
+	startTime := time.Now()
+	hc.Hotk <- k
+	dur := time.Since(startTime)
+	fmt.Printf("写入时间：%s\n", dur)
 	err = fs.renameAndUpdateDiskUsage(tmp.Name(), path)
 	if err != nil {
 		return err
@@ -616,7 +626,7 @@ func (fs *Datastore) putMany(data map[datastore.Key][]byte) error {
 	}
 
 	for key, value := range data {
-		dir, path := fs.encode(key)
+		dir, path, k := fs.encode1(key)
 		if err := fs.makeDirNoSync(dir); err != nil {
 			return err
 		}
@@ -654,7 +664,10 @@ func (fs *Datastore) putMany(data map[datastore.Key][]byte) error {
 		if _, err := tmp.Write(value); err != nil {
 			return err
 		}
-		hc.Maphot.Set(key.String()[1:], 1)
+		startTime := time.Now()
+		hc.Hotk <- k
+		dur := time.Since(startTime)
+		fmt.Printf("写入时间：%s\n", dur)
 	}
 
 	// Now we sync everything
@@ -713,7 +726,13 @@ func (fs *Datastore) Get(ctx context.Context, key datastore.Key) (value []byte, 
 		// no specific error to return, so just pass it through
 		return nil, err
 	}
-
+	//now := time.Now()
+	//err = os.Chtimes(path, now, now)
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return
+	//}
+	//fmt.Println("访问时间已更改")
 	return data, nil
 }
 
